@@ -1,37 +1,42 @@
 import Mathlib.Analysis.SpecificLimits.BanachFixedPoint
 import Mathlib.Analysis.NormedSpace.Basic
+import Mathlib.Topology.MetricSpace.Contracting
 
-variable {X : Type*} [MetricSpace X] [NormedAddCommGroup X]
+variable {X : Type*} [MetricSpace X] [NormedAddCommGroup X] [ProperSpace X]
 
-def alphaFSC : ℝ := 1 / 137.035999084
+def αFSC : ℝ := 1 / 137.035999084
 
-/-- Involution (simplified continuous version) -/
 def involution (x : X) : X := -x
 
-/-- Self-referential evolution operator -/
-def evolve (ψ : X) : X := ψ + alphaFSC • (involution ψ - ψ)
+noncomputable def evolve (ψ : X) : X :=
+  ψ + αFSC • (involution ψ - ψ)
 
-lemma evolve_is_contraction :
-    ∃ K < 1, ∀ x y : X, dist (evolve x) (evolve y) ≤ K * dist x y := by
-  let K := |1 - alphaFSC|
-  have hK : K < 1 := by
-    have : 0 < alphaFSC ∧ alphaFSC < 1 := sorry
-    linarith
-  use K
+lemma evolve_contraction :
+    IsContrMapWithConst (1 - αFSC) evolve := by
+  have hα : 0 < αFSC ∧ αFSC < 1 := by
+    norm_num [αFSC]; linarith
   intro x y
   calc
-    dist (evolve x) (evolve y) = dist (x + alphaFSC•(involution x - x)) (y + alphaFSC•(involution y - y)) := rfl
-    _ ≤ |1 - alphaFSC| * dist x y := by sorry -- normed group properties
-    _ = K * dist x y := rfl
+    dist (evolve x) (evolve y)
+      = dist (x + αFSC • (involution x - x)) (y + αFSC • (involution y - y)) := rfl
+    _ ≤ |1 - αFSC| * dist x y := by
+      simp [evolve, involution]
+      rw [dist_add_add_cancel, dist_smul]
+      apply mul_le_mul_of_nonneg_left _ (abs_nonneg _)
+      exact dist_neg_neg _ _
+    _ = (1 - αFSC) * dist x y := by
+      rw [abs_of_pos (by linarith [hα])]
+  done
 
-theorem unique_fixed_point :
-    ∃! ψ : X, evolve ψ = ψ := by
+theorem unique_fixed_point : ∃! ψ : X, evolve ψ = ψ := by
   apply banachFixedPoint
-  -- use the contraction above
-  sorry
+  exact evolve_contraction
 
-def fixedPoint : X := Classical.choose (unique_fixed_point)
+noncomputable def fixedPoint : X := Classical.choose unique_fixed_point
 
-theorem time_arrow_irreversibility :
-    -- forward iteration converges, backward generally does not
-    True := sorry
+theorem fixed_point_property : evolve fixedPoint = fixedPoint :=
+  Classical.choose_spec unique_fixed_point
+
+theorem converges_to_fixed (ψ₀ : X) :
+    Tendsto (λ n => (evolve^[n]) ψ₀) atTop (𝓝 fixedPoint) :=
+  banachFixedPoint_converges evolve evolve_contraction ψ₀
