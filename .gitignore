@@ -1,0 +1,14 @@
+.lake/
+build/
+*.olean
+*.olean.tmp
+*.ilean
+*.trace
+__pycache__/
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.toc
+*.synctex.gz
